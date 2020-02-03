@@ -2465,7 +2465,6 @@
 
 .app-shell-component--homepage .homepage-main {
     margin: 0 20px;
-    padding-top: 20px ;
     position: relative;
     width: -webkit-calc(100% - (20px * 2));
     width: calc(100% - (20px * 2))
