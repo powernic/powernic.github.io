@@ -1,0 +1,65 @@
+'use strict';
+(function () {
+    var request = new XMLHttpRequest();
+    var headElement = document.querySelector('head');
+    var existingSdkScript = document.querySelector("script[src*='otSDKStub']");
+    var src = existingSdkScript.getAttribute('src');
+    var domainId = existingSdkScript.getAttribute('data-domain-script');
+    var scriptTemplatesIndex = src.indexOf('scripttemplates');
+    var cdnUrl = src.substring(0, scriptTemplatesIndex);
+
+    function initializeScriptForFeatureToggle() {
+        var ruleJsonUrl = cdnUrl + "consent/" + domainId + "/" + domainId + ".json";
+        if (!new RegExp('^(http|https)://', 'i').test(ruleJsonUrl)) {
+            otfetchOfflineJsonFile(ruleJsonUrl);
+        } else {
+            request.addEventListener('load', httpCallback, false);
+            request.open('GET', ruleJsonUrl, true);
+            request.send();
+        }
+    }
+
+    function httpCallback() {
+        var resp = JSON.parse(request.response);
+        var scriptElement = document.createElement('script');
+        scriptElement.setAttribute('type', 'text/javascript');
+        var scriptURL = cdnUrl +
+            (resp.UseSDKRefactor
+                ? 'scripttemplates/new/scripttemplates/otSDKStub.js'
+                : 'scripttemplates/old/scripttemplates/otSDKStub.js'
+            );
+        scriptElement.setAttribute('src', scriptURL);
+        window.otStubData = {
+            mobileOnlineURL: [scriptURL],
+        };
+        headElement.insertBefore(scriptElement, headElement.firstChild);
+    }
+
+    function insertScriptElementForOffline(url, callback) {
+        var el = document.createElement('script');
+        el.setAttribute('src', url);
+        el.setAttribute('type', 'text/javascript');
+        if (callback) {
+            el.onload = function () {
+                callback();
+            };
+        }
+        headElement.insertBefore(el, headElement.firstChild);
+    }
+
+    function otfetchOfflineJsonFile(ruleJsonUrl) {
+        ruleJsonUrl = ruleJsonUrl.replace('.json', '.js');
+        var urlPath = ruleJsonUrl.split('/');
+        var fileObject = urlPath[urlPath.length - 1].split('.js')[0];
+        var loadCallBack = function () {
+            var offlineResponse = window[fileObject];
+            insertScriptElementForOffline(cdnUrl +
+                (offlineResponse.UseSDKRefactor
+                    ? 'scripttemplates/new/scripttemplates/otSDKStub.js'
+                    : 'scripttemplates/old/scripttemplates/otSDKStub.js'
+                ), null);
+        }
+        insertScriptElementForOffline(ruleJsonUrl, loadCallBack);
+    }
+    initializeScriptForFeatureToggle();
+})();
